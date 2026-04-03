@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  MyMinimalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: conversationproto
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      Timeout: 29
+      Architectures:
+        - x86_64
+  
+  ConfigLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref MyMinimalFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AsyncApi}/*"
+  
+  AsyncApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+        openapi: "3.0.1"
+        paths:
+          /async-process:
+            post:
+              responses:
+                "202":
+                  description: "202 response"
+              x-amazon-apigateway-integration:
+                type: "aws"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MyMinimalFunction.Arn}/invocations"
+                responses:
+                  default:
+                    statusCode: "202"
+                requestParameters:
+                  integration.request.header.X-Amz-Invocation-Type: "'Event'"
+                passthroughBehavior: "when_no_match"
+Outputs:
+  MyMinimalFunction:
+    Value: !GetAtt MyMinimalFunction.Arn
+  MyMinimalFunctionRole:
+    Value: !GetAtt MyMinimalFunctionRole.Arn
