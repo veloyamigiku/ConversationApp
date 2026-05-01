@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
+Parameters:
+  TargetTableName:
+    Type: String
+    Default: "ConversationProto"
+
 Resources:
   MyMinimalFunction:
     Type: AWS::Serverless::Function
@@ -11,6 +16,9 @@ Resources:
       Timeout: 29
       Architectures:
         - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TargetTableName
   
   ConfigLambdaPermission:
     Type: AWS::Lambda::Permission
@@ -41,6 +49,11 @@ Resources:
                     statusCode: "202"
                 requestParameters:
                   integration.request.header.X-Amz-Invocation-Type: "'Event'"
+                requestTemplates:
+                  application/json: |
+                    {
+                      "body": $input.json('$')
+                    }
                 passthroughBehavior: "when_no_match"
 Outputs:
   MyMinimalFunction:

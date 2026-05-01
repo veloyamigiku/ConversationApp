@@ -8,6 +8,7 @@ confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
 disable_rollback = true
+parameter_overrides = "TargetTableName=\"ConversationProto\""
 
 [default.global.parameters]
 region = "ap-northeast-1"
