@@ -5,7 +5,7 @@ description = ""
 authors = [
     {name = "velo.yamigiku@gmail.com",email = "velo.yamigiku@gmail.com"}
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<4.0.0"
 dependencies = [
 ]
 
@@ -16,4 +16,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 boto3 = "^1.43.1"
+
+
+[tool.poetry.group.langchain-google.dependencies]
+langchain = "^1.2.17"
+langchain-google-genai = "^4.2.2"
+google-genai = "1.75.0"
 

@@ -5,8 +5,19 @@ Parameters:
   TargetTableName:
     Type: String
     Default: "ConversationProto"
+  ParameterGeminiAPIKey:
+    Type: String
+    Default: "/conversation-app/conversation-proto/gemini-api-key"
 
 Resources:
+  MySecureParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Ref ParameterGeminiAPIKey
+      Type: String
+      Value: "GEMINI-API-KEY"
+      Tier: Standard
+      Description: "After deploy, reset gemini-api-key with SecureString."
   MyMinimalFunction:
     Type: AWS::Serverless::Function
     Properties:
