@@ -5,19 +5,19 @@ Parameters:
   TargetTableName:
     Type: String
     Default: "ConversationProto"
-  ParameterGeminiAPIKey:
-    Type: String
-    Default: "/conversation-app/conversation-proto/gemini-api-key"
 
 Resources:
-  MySecureParameter:
-    Type: AWS::SSM::Parameter
+  MyLayer:
+    Type: AWS::Serverless::LayerVersion
     Properties:
-      Name: !Ref ParameterGeminiAPIKey
-      Type: String
-      Value: "GEMINI-API-KEY"
-      Tier: Standard
-      Description: "After deploy, reset gemini-api-key with SecureString."
+      LayerName: langchain-google
+      Description: langchain-google-library
+      ContentUri: ../Layer/LangChainGoogle
+      CompatibleRuntimes:
+        - python3.10
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.10
   MyMinimalFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -30,6 +30,11 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TargetTableName
+      Layers:
+        - !Ref MyLayer
+      Environment:
+        Variables:
+          GOOGLE_API_KEY: "(google_api_key)"
   
   ConfigLambdaPermission:
     Type: AWS::Lambda::Permission

@@ -12,13 +12,6 @@ dynamodb = boto3.resource('dynamodb')
 conversation_table = dynamodb.Table('ConversationProto')
 
 # llm init.
-ssm = boto3.client('ssm')
-ssm_res = ssm.get_parameter(
-  Name='/conversation-app/conversation-proto/gemini-api-key',
-  WithDecryption=True
-)
-gemini_api_key = ssm_res['Parameter']['Value']
-os.environ['GOOGLE_API_KEY'] = gemini_api_key
 llm = ChatGoogleGenerativeAI(
   model='gemini-2.5-flash',
   temperature=0.7,
