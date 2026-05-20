@@ -2,16 +2,29 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
 from datetime import timezone
+from fastapi import FastAPI
+import json
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts import MessagesPlaceholder
 from langchain_google_genai import ChatGoogleGenerativeAI
+from mangum import Mangum
 import os
+from pydantic import BaseModel
 import time
+
+class ConversationRequest(BaseModel):
+  conversation_id: str
+  comment: str
+
+app = FastAPI()
 
 # dynamodb init.
 dynamodb = boto3.resource('dynamodb')
 conversation_table = dynamodb.Table('ConversationProto')
+
+# lambda init
+lambda_client = boto3.client('lambda')
 
 # llm init.
 llm = ChatGoogleGenerativeAI(
@@ -28,16 +41,50 @@ def get_datetime_info_for_logging():
   timestamp = int(time.time())
   return iso_date, timestamp
 
-def lambda_handler(event, context):
+@app.post('/conversation')
+def conversation(request: ConversationRequest):
   print('exec.')
 
-  request_iso_date, request_timestamp = get_datetime_info_for_logging()
+  my_function_name = os.getenv('AWS_LAMBDA_FUNCTION_NAME', None)
 
-  body_data = event.get('body', {})
-  print('type(body_data): {}'.format(type(body_data)))
-  print('body_data: {}'.format(body_data))
-  conversation_id = body_data.get('conversation_id')
-  comment = body_data.get('comment')
+  payload = {
+    'resource': '/{proxy+}',
+    'path': '/conversation_worker_task',
+    'httpMethod': 'POST',
+    'headers': {
+      'content-type': 'application/json'
+    },
+    'multiValueHeaders': {},
+    'requestContext': {
+      'httpMethod': 'POST',
+      'path': '/conversation_worker_task',
+    },
+    'body': json.dumps({
+      'conversation_id': request.conversation_id,
+      'comment': request.comment
+    }),
+    'isBase64Encoded': False
+  }
+  print('/conversation payload: {}'.format(payload))
+
+  lambda_client.invoke(
+    FunctionName=my_function_name,
+    InvocationType='Event',
+    Payload=json.dumps(payload)
+  )
+
+  return {
+    'status': 'Accepted',
+    'detail': 'Called conversation_worker_task asynchronously.'
+  }
+
+@app.post('/conversation_worker_task')
+def conversation_worker_task(payload: dict):
+  print('/conversation_worker_task payload: {}'.format(payload))
+  
+  request_iso_date, request_timestamp = get_datetime_info_for_logging()
+  conversation_id = payload['conversation_id']
+  comment = payload['comment']
 
   conversation_query_response = conversation_table.query(
     KeyConditionExpression=Key('conversation_id').eq(conversation_id),
@@ -62,7 +109,7 @@ def lambda_handler(event, context):
     print('===error: {}'.format(e))
   
   messages = []
-  messages.append(('system', 'あなたは親切なアシスタントです。'))
+  messages.append(('system', '英会話講師として世界共通基準CEFRのレベルA1で会話してください。'))
   if len(past_comments) > 0:
     messages.append(MessagesPlaceholder(variable_name='past_comments'))
   messages.append(('human', '{input}'))
@@ -89,19 +136,12 @@ def lambda_handler(event, context):
   except Exception as e:
     print('===error: {}'.format(e))
 
+handler = Mangum(app)
+
 if __name__ == '__main__':
-  import argparse
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--conversation_id', type=str, default=None)
-  parser.add_argument('--comment', type=str, default=None)
-  args = parser.parse_args()
-  body = {
-    'conversation_id': args.conversation_id,
-    'comment': args.comment
-  }
-  event = {
-    'body': body
-  }
-  lambda_handler(
-    event=event,
-    context=None)
+  
+  import uvicorn
+  uvicorn.run(
+    app,
+    host='0.0.0.0',
+    port=8000)

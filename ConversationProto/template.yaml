@@ -7,6 +7,7 @@ Parameters:
     Default: "ConversationProto"
 
 Resources:
+  
   MyLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -15,14 +16,26 @@ Resources:
       ContentUri: ../Layer/LangChainGoogle
       CompatibleRuntimes:
         - python3.10
-      RetentionPolicy: Retain
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.10
+  MyLayer2:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: fastapi
+      Description: fastapi-library
+      ContentUri: ../Layer/FastAPI
+      CompatibleRuntimes:
+        - python3.10
+      RetentionPolicy: Delete
     Metadata:
       BuildMethod: python3.10
   MyMinimalFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: conversationproto
-      Handler: app.lambda_handler
+      FunctionName: myminimalfunction
+      Handler: app.handler
       Runtime: python3.10
       Timeout: 29
       Architectures:
@@ -30,11 +43,29 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TargetTableName
+        - Statement:
+            - Effect: Allow
+              Action: "lambda:InvokeFunction"
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:myminimalfunction"
       Layers:
         - !Ref MyLayer
+        - !Ref MyLayer2
       Environment:
         Variables:
           GOOGLE_API_KEY: "(google_api_key)"
+      Events:
+        RootPathRoute:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+            RestApiId: !Ref AsyncApi
+        ProxyPathRoute:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+            RestApiId: !Ref AsyncApi
   
   ConfigLambdaPermission:
     Type: AWS::Lambda::Permission
@@ -48,29 +79,7 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
-      DefinitionBody:
-        openapi: "3.0.1"
-        paths:
-          /async-process:
-            post:
-              responses:
-                "202":
-                  description: "202 response"
-              x-amazon-apigateway-integration:
-                type: "aws"
-                httpMethod: "POST"
-                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MyMinimalFunction.Arn}/invocations"
-                responses:
-                  default:
-                    statusCode: "202"
-                requestParameters:
-                  integration.request.header.X-Amz-Invocation-Type: "'Event'"
-                requestTemplates:
-                  application/json: |
-                    {
-                      "body": $input.json('$')
-                    }
-                passthroughBehavior: "when_no_match"
+  
 Outputs:
   MyMinimalFunction:
     Value: !GetAtt MyMinimalFunction.Arn

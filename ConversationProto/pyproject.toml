@@ -16,6 +16,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 boto3 = "^1.43.1"
+uvicorn = "^0.47.0"
 
 
 [tool.poetry.group.langchain-google.dependencies]
@@ -23,4 +24,9 @@ langchain = "^1.2.17"
 langchain-google-genai = "^4.2.2"
 google-genai = "1.75.0"
 langchain-community = "^0.4.1"
+
+
+[tool.poetry.group.fastapi.dependencies]
+fastapi = "^0.136.1"
+mangum = "^0.21.0"
 
